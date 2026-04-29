@@ -79,10 +79,10 @@ trainer:
   accelerator: gpu
   #devices: 1
   devices: 1
-  accumulate_grad_batches: 10 #20
+  accumulate_grad_batches: 5 #20
   limit_train_batches: 100 #500
   limit_val_batches: 50 #50.
-  limit_test_batches: 500 #50.
+  limit_test_batches: 1000 #50.
   max_epochs:  120
   logger:
     _target_: pytorch_lightning.loggers.tensorboard.TensorBoardLogger
@@ -178,7 +178,7 @@ datamodule:
     cimr_SIT: 0.1 #10% noise relative to physical value
     cristal_SIT: 0.1 #0.1m noise relative to physical value
 
-  add_noise: True
+  add_noise: False
 
   norm_stats:
     asip:
@@ -234,70 +234,139 @@ model:
     _target_: contrib.CROSCIM.solver.GradSolvers
     solvers:
       solver_x50:
-        _target_: contrib.CROSCIM.unet.UNetModel3
-        in_channels: ${python_eval:"len(${computed.input_vars_all}) * ${var_config.time_steps.patch_x50}"}
-        out_channels: ${python_eval:"len(${var_config.target_vars.patch_x50}) * ${var_config.time_steps.patch_x50}"}
-        #out_channels: 3
-        model_channels: 32
-        num_res_blocks: 1
-        channel_mult: [1,2]
-        attention_resolutions: []
-        use_checkpoint: true
-        dropout: 0.1
-        bias: false
-        interp_mode: bilinear
+        _target_: contrib.CROSCIM.solver.GradSolver
+        n_step: 10
+        lr_grad: 0.2
+        input_grad_update: 'grad' #'obs+state' ##'grad-only' #'grad+state' #'obs-only'  # 'grad+previous'  #'gobs+sgprior' #'grad+state'  #'grad-only' #'grad+state'  #'grad+state' #    
+        input_vars: ${computed.input_vars_all}
+        target_vars: ${var_config.target_vars.patch_x50}
+        var_mapping: ${var_config.var_mapping.patch_x50}
+        n_time: ${var_config.time_steps.patch_x50}
+        obs_cost:
+          _target_: contrib.CROSCIM.solver.BaseObsCost
+          w: 1.0
+          use_target: true
+        prior_cost:
+          _target_: contrib.CROSCIM.solver.BilinAEPriorCost
+          dim_in: ${python_eval:"len(${computed.input_vars_all}) * ${var_config.time_steps.patch_x50}"}
+          dim_hidden: 180
+          dim_out: ${python_eval:"len(${var_config.target_vars.patch_x50}) * ${var_config.time_steps.patch_x50}"}
+        grad_mod:
+          _target_: contrib.CROSCIM.solver.GradModelWithCondition
+          use_grad_norm: true
+          grad_model:
+            _target_: contrib.CROSCIM.unet.UNetModel2
+            in_channels: ${python_eval:"len(${var_config.target_vars.patch_x50}) * ${var_config.time_steps.patch_x50}"}
+            out_channels: ${python_eval:"len(${var_config.target_vars.patch_x50}) * ${var_config.time_steps.patch_x50}"}
+            model_channels: 32
+            num_res_blocks: 1
+            channel_mult:
+            - 1
+            - 2
+            attention_resolutions: []
+            use_checkpoint: true
+            dropout: 0.1
+            bias: false
+            interp_mode: bilinear
         fill_missing_inp: false
       solver_x10:
-        _target_: contrib.CROSCIM.unet.UNetModel3
-        in_channels: ${python_eval:"len(${computed.input_vars_all}) * ${var_config.time_steps.patch_x10}"}
-        out_channels: ${python_eval:"len(${var_config.target_vars.patch_x10}) * ${var_config.time_steps.patch_x10}"}
-        #out_channels: 3
-        model_channels: 32
-        num_res_blocks: 1
-        channel_mult: [1,2]
-        attention_resolutions: []
-        use_checkpoint: true
-        dropout: 0.1
-        bias: false
-        interp_mode: bilinear
+        _target_: contrib.CROSCIM.solver.GradSolver
+        n_step: 10
+        lr_grad: 0.2
+        input_grad_update: 'grad' #'obs+state' ##'grad-only' #'grad+state' #'obs-only'  # 'grad+previous'  #'gobs+sgprior' #'grad+state'  #'grad-only' #'grad+state'  #'grad+state' #    
+        input_vars: ${computed.input_vars_all}
+        target_vars: ${var_config.target_vars.patch_x10}
+        var_mapping: ${var_config.var_mapping.patch_x10}
+        n_time: ${var_config.time_steps.patch_x10}
+        obs_cost:
+          _target_: contrib.CROSCIM.solver.BaseObsCost
+          w: 1.0
+          use_target: true
+        prior_cost:
+          _target_: contrib.CROSCIM.solver.BilinAEPriorCost
+          dim_in: ${python_eval:"len(${computed.input_vars_all}) * ${var_config.time_steps.patch_x10}"}
+          dim_hidden: 180
+          dim_out: ${python_eval:"len(${var_config.target_vars.patch_x10}) * ${var_config.time_steps.patch_x10}"}
+        grad_mod:
+          _target_: contrib.CROSCIM.solver.GradModelWithCondition
+          use_grad_norm: true
+          grad_model:
+            _target_: contrib.CROSCIM.unet.UNetModel2
+            in_channels: ${python_eval:"len(${var_config.target_vars.patch_x10}) * ${var_config.time_steps.patch_x10}"}
+            out_channels: ${python_eval:"len(${var_config.target_vars.patch_x10}) * ${var_config.time_steps.patch_x10}"}
+            model_channels: 32
+            num_res_blocks: 1
+            channel_mult:
+            - 1
+            - 2
+            attention_resolutions: []
+            use_checkpoint: true
+            dropout: 0.1
+            bias: false
+            interp_mode: bilinear
         fill_missing_inp: false
       solver_x2:
-        _target_: contrib.CROSCIM.unet.UNetModel3
-        in_channels: ${python_eval:"len(${computed.input_vars_all}) * ${var_config.time_steps.patch_x2}"}
-        out_channels: ${python_eval:"len(${var_config.target_vars.patch_x2}) * ${var_config.time_steps.patch_x2}"}
-        #out_channels: 3
-        model_channels: 32
-        num_res_blocks: 1
-        channel_mult: [1,2]
-        attention_resolutions: []
-        use_checkpoint: true
-        dropout: 0.1
-        bias: false
-        interp_mode: bilinear
+        _target_: contrib.CROSCIM.solver.GradSolver
+        n_step: 10
+        lr_grad: 0.2
+        input_grad_update: 'grad' #'obs+state' ##'grad-only' #'grad+state' #'obs-only'  # 'grad+previous'  #'gobs+sgprior' #'grad+state'  #'grad-only' #'grad+state'  #'grad+state' #    
+        input_vars: ${computed.input_vars_all}
+        target_vars: ${var_config.target_vars.patch_x2}
+        var_mapping: ${var_config.var_mapping.patch_x2}
+        n_time: ${var_config.time_steps.patch_x2}
+        obs_cost:
+          _target_: contrib.CROSCIM.solver.BaseObsCost
+          w: 1.0
+          use_target: true
+        prior_cost:
+          _target_: contrib.CROSCIM.solver.BilinAEPriorCost
+          dim_in: ${python_eval:"len(${computed.input_vars_all}) * ${var_config.time_steps.patch_x2}"}
+          dim_hidden: 180
+          dim_out: ${python_eval:"len(${var_config.target_vars.patch_x2}) * ${var_config.time_steps.patch_x2}"}
+        grad_mod:
+          _target_: contrib.CROSCIM.solver.GradModelWithCondition
+          use_grad_norm: true
+          grad_model:
+            _target_: contrib.CROSCIM.unet.UNetModel2
+            in_channels: ${python_eval:"len(${var_config.target_vars.patch_x2}) * ${var_config.time_steps.patch_x2}"}
+            out_channels: ${python_eval:"len(${var_config.target_vars.patch_x2}) * ${var_config.time_steps.patch_x2}"}
+            model_channels: 32
+            num_res_blocks: 1
+            channel_mult:
+            - 1
+            - 2
+            attention_resolutions: []
+            use_checkpoint: true
+            dropout: 0.1
+            bias: false
+            interp_mode: bilinear
         fill_missing_inp: false
   norm_stats: ${datamodule.norm_stats}
   norm_stats_covs: ${datamodule.norm_stats_covs}
   norm_stats_models: ${datamodule.norm_stats_models} 
-  ensemble_mean: True
+  ensemble_mean: False
 
 optim_weight:
   patch_x50:
-    _target_: src.utils.get_linear_time_wei
+    _target_: src.utils.get_frcst_time_wei
     patch_dims: {time: 15, yc: 294, xc: 304}
     crop: {time: 0, yc: 0, xc: 0}
-    offset: 1
+    offset: 0
+    frcst_lead: 3
     dim_order: ["time", "yc", "xc"]
   patch_x10:
-    _target_: src.utils.get_uniform_time_wei
+    _target_: src.utils.get_frcst_time_wei
     patch_dims: {time: 10, yc: 512, xc: 512}
     crop: {time: 0, yc: 28, xc: 28}
     offset: 0
+    frcst_lead: 3
     dim_order: ["time", "yc", "xc"]
   patch_x2:
-    _target_: src.utils.get_linear_time_wei
+    _target_: src.utils.get_frcst_time_wei
     patch_dims: {time: 5, yc: 256, xc: 256}
     crop: {time: 0, yc: 28, xc: 28}
-    offset: 1
+    offset: 0
+    frcst_lead: 3
     dim_order: ["time", "yc", "xc"]
 
 metrics:
@@ -310,7 +379,7 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-    ckpt_path: ${paths.src}/results/2026-04-27/23:02:42/CROSCIM/SUPERVISED/res50-10-2_Unet_supervised/checkpoints/last.ckpt
+    ckpt_path: ${paths.src}/results/2026-04-27/22:59:25/CROSCIM/SUPERVISED/res50-10-2_Unet-unrolling-grad_10iter_supervised/checkpoints/last.ckpt
     save_dir: ${paths.src}/inference
 
 # entrypoints:

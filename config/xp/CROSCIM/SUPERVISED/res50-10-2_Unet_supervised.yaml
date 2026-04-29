@@ -79,9 +79,9 @@ trainer:
   #devices: 1
   devices: 1
   accumulate_grad_batches: 10 #20
-  limit_train_batches: 300 #500
+  limit_train_batches: 100 #500
   limit_val_batches: 50 #50.
-  limit_test_batches: 50 #50.
+  limit_test_batches: 500 #50.
   max_epochs:  120
   logger:
     _target_: pytorch_lightning.loggers.tensorboard.TensorBoardLogger
@@ -137,7 +137,7 @@ datamodule:
     cimr_SIT: 0.1 #10% noise relative to physical value
     cristal_SIT: 0.1 #0.1m noise relative to physical value
 
-  add_noise: True
+  add_noise: False
   norm_stats:
     asip:
       sic: {min: 0.0, max: 100.0, type: minmax}
@@ -197,7 +197,7 @@ model:
         in_channels: ${python_eval:"len(${computed.input_vars_all}) * ${var_config.time_steps.patch_x50}"}
         out_channels: ${python_eval:"len(${var_config.target_vars.patch_x50}) * ${var_config.time_steps.patch_x50}"}
         #out_channels: 3
-        model_channels: 64
+        model_channels: 32
         num_res_blocks: 1
         channel_mult: [1,2]
         attention_resolutions: []
@@ -211,7 +211,7 @@ model:
         in_channels: ${python_eval:"len(${computed.input_vars_all}) * ${var_config.time_steps.patch_x10}"}
         out_channels: ${python_eval:"len(${var_config.target_vars.patch_x10}) * ${var_config.time_steps.patch_x10}"}
         #out_channels: 3
-        model_channels: 64
+        model_channels: 32
         num_res_blocks: 1
         channel_mult: [1,2]
         attention_resolutions: []
@@ -225,7 +225,7 @@ model:
         in_channels: ${python_eval:"len(${computed.input_vars_all}) * ${var_config.time_steps.patch_x2}"}
         out_channels: ${python_eval:"len(${var_config.target_vars.patch_x2}) * ${var_config.time_steps.patch_x2}"}
         #out_channels: 3
-        model_channels: 64
+        model_channels: 32
         num_res_blocks: 1
         channel_mult: [1,2]
         attention_resolutions: []
